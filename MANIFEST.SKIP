@@ -13,3 +13,7 @@
 ~$
 \.bak$
 ^\.claude/
+^RELEASING\.md$
+\.obj$
+\.dll$
+\.def$

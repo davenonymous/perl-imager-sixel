@@ -1,0 +1,2 @@
+# Test fixtures must reach the tests byte for byte on every platform.
+t/data/* binary

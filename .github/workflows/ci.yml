@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Perl ${{ matrix.perl }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        distribution: [default]
+        perl:
+          - '5.44.0'
+          - '5.42.3'
+          - '5.40.5'
+          - '5.38.5'
+          - '5.36.3'
+          - '5.34.3'
+          - '5.32.1'
+          - '5.30.3'
+          - '5.28.3'
+          - '5.26.3'
+          - '5.24.4'
+        include:
+          - os: windows-latest
+            distribution: strawberry
+            perl: latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Perl ${{ matrix.perl }}
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: ${{ matrix.perl }}
+          distribution: ${{ matrix.distribution }}
+          install-modules-with: cpanm
+
+      - name: Show Perl configuration
+        run: perl -V
+
+      - name: Install declared dependencies
+        run: cpanm --installdeps --notest --verbose .
+
+      - name: Configure
+        run: perl Makefile.PL
+
+      - name: Build
+        run: $(perl -MConfig -e 'print $Config{make}')
+
+      - name: Test
+        env:
+          # parallel test runs need select() on pipes, which Windows lacks
+          HARNESS_OPTIONS: ${{ runner.os == 'Windows' && 'j1' || 'j4' }}
+        run: $(perl -MConfig -e 'print $Config{make}') test
+
+      - name: Verbose test re-run on failure
+        if: failure()
+        run: prove -vb t
+
+  release-checks:
+    name: Author tests and distribution check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Perl
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: latest
+          install-modules-with: cpanm
+
+      - name: Install declared dependencies
+        run: cpanm --installdeps --with-develop --notest .
+
+      - name: Configure and build
+        run: |
+          perl Makefile.PL
+          make
+
+      - name: Author tests
+        run: prove -b xt
+
+      - name: Module versions agree
+        run: make version-check
+
+      - name: Distribution builds and passes its tests
+        run: make disttest

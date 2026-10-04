@@ -30,6 +30,7 @@ INSTALLATION
 Imager 1.013 or later, a C compiler and Perl 5.24 or later are
 required.
 
+    cpanm --installdeps .
     perl Makefile.PL
     make
     make test

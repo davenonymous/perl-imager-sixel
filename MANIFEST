@@ -1,4 +1,5 @@
 Changes
+cpanfile
 examples/sixel-animate.pl
 examples/sixel-bench.pl
 examples/sixel-cat.pl
