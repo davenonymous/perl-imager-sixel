@@ -8,7 +8,7 @@ use Imager 1.013;
 use Scalar::Util qw(blessed);
 use XSLoader;
 
-our $VERSION = '1.000';
+our $VERSION = '1.001';
 
 XSLoader::load(__PACKAGE__, $VERSION);
 
