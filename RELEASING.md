@@ -43,9 +43,37 @@ This dist uses plain `ExtUtils::MakeMaker` plus
    date and bullet points describing the changes since the last
    release.
 
-4. Keep `README` in step with the pod in `lib/Imager/File/SIXEL.pm`. It
-   is written by hand and ships in the dist, so review it whenever the
-   synopsis, the performance figures or the prerequisites changed.
+4. Bring the documentation up to date and commit what changed:
+
+   ```sh
+   perl Makefile.PL && make
+   make docs
+   ```
+
+   `make docs` renders the pictures in `images/` again with
+   `tools/make-images` (it needs Imager with PNG and FreeType support
+   and fontconfig's `fc-match`) and writes the Markdown versions of the
+   three documentation pages with `tools/pod2markdown` (it needs
+   Pod::Markdown): `README.md` from `lib/Imager/File/SIXEL.pm`, and
+   `docs/Examples.md` and `docs/Format.md` from
+   `lib/Imager/File/SIXEL/Examples.pod` and
+   `lib/Imager/File/SIXEL/Format.pod`. Links between the pages point to
+   the Markdown files. The script also removes the shared indentation of
+   code blocks and fences each block with the language set by the last
+   `=for highlighter language=NAME` paragraph in the pod (`perl` before
+   the first one); MetaCPAN uses the same marker. Put such a paragraph
+   before every code block that is not Perl, and one with `perl` before
+   the next Perl block. In `text` blocks, tables (a header line, a line
+   of dashes per column, then the rows) become Markdown tables; see
+   `perldoc tools/pod2markdown`. Never edit the Markdown files by hand.
+   `make release` refuses to run while `make docs-check` finds anything
+   out of date, or finds that the pod shows a picture that
+   `tools/make-images` does not render or the other way round.
+
+   The pod shows the pictures with `<img src="/images/NAME.png">`.
+   GitHub resolves the path from the top of the repository for the
+   Markdown files, MetaCPAN from the top of the dist for the pod, so
+   `images/` must stay in `MANIFEST`.
 
 5. If prerequisites changed, update both `Makefile.PL` (what the CPAN
    toolchain reads) and `cpanfile` (what `cpanm --installdeps .` and

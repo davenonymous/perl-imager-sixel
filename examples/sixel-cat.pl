@@ -85,7 +85,7 @@ L<Imager::File::SIXEL/sixel_dither>.
 
 =item --colors COUNT
 
-The largest number of colours to use, from 1 to 256 (the default).
+The largest number of colors to use, from 1 to 256 (the default).
 
 =back
 

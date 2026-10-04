@@ -31,7 +31,7 @@ my @settings = (
 	['none, webmap'        => { sixel_dither => 'none',      sixel_palette => 'webmap' }],
 );
 
-# A smooth multi-colour picture with a little noise, standing in for a
+# A smooth multi-color picture with a little noise, standing in for a
 # photograph when no --file is given.
 sub syntheticImage() {
 	my $img = Imager->new(xsize => 1024, ysize => 768);

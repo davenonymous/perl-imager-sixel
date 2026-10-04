@@ -19,4 +19,5 @@ on test => sub {
 on develop => sub {
 	requires 'Test::Pod', '1.00';
 	requires 'CPAN::Uploader';
+	requires 'Pod::Markdown';
 };

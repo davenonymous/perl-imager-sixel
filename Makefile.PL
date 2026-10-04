@@ -37,9 +37,13 @@ WriteMakefile(
 				requires => {
 					'Test::Pod'      => '1.00',
 					'CPAN::Uploader' => '0',
+					'Pod::Markdown'  => '0',
 				},
 			},
 		},
+		# tools/make-images renders the pictures in images/ that the
+		# documentation shows; both are shipped but not installed.
+		no_index  => { directory => [qw(examples tools images)] },
 		resources => {
 			homepage   => 'https://github.com/davenonymous/perl-imager-sixel',
 			bugtracker => { web => 'https://github.com/davenonymous/perl-imager-sixel/issues' },
@@ -55,6 +59,45 @@ WriteMakefile(
 sub MY::postamble {
 	return <<'MAKE_FRAG';
 
+# --- Documentation --------------------------------------------------
+# Usage: make docs         (after changing the pod or the encoder)
+#        make docs-check   (fails when the documentation is out of date)
+#
+# README.md, docs/Examples.md and docs/Format.md are the pod of
+# lib/Imager/File/SIXEL.pm and lib/Imager/File/SIXEL/*.pod converted
+# with tools/pod2markdown, a Pod::Markdown subclass that links the pages
+# to each other's Markdown files, removes the shared indentation of code
+# blocks, fences them with the language set by '=for highlighter' and
+# turns tables in 'text' blocks into Markdown tables. tools/make-images
+# renders the pictures in images/ with the encoder in blib/, so this
+# distribution is built first; with
+# --check it also fails when the pod shows a picture that it does not
+# render, or does not show one that it renders.
+
+.PHONY: readme images docs docs-check
+
+POD_MARKDOWN_CHECK = $(PERLRUN) -MPod::Markdown -e1 2>/dev/null || { \
+	    echo "ERROR: Pod::Markdown is not installed; cpanm Pod::Markdown"; \
+	    exit 1; \
+	}
+
+readme :
+	@$(POD_MARKDOWN_CHECK)
+	$(PERLRUN) tools/pod2markdown
+
+images : pure_all
+	$(FULLPERLRUN) -Mblib tools/make-images
+
+docs : images readme
+
+docs-check : pure_all
+	$(FULLPERLRUN) -Mblib tools/make-images --check
+	@$(POD_MARKDOWN_CHECK)
+	@$(PERLRUN) tools/pod2markdown --check || { \
+	    echo "ERROR: the Markdown files are out of date; run 'make readme' (or 'make docs')."; \
+	    exit 1; \
+	}
+
 # --- Release target -------------------------------------------------
 # Usage: make release
 #
@@ -62,8 +105,9 @@ sub MY::postamble {
 # `make dist` (disttest alone only creates the unpacked directory),
 # then uploads it to CPAN with cpan-upload (from CPAN::Uploader).
 # Refuses to run if the git working tree is dirty, if a module's
-# $VERSION differs from the one in lib/Imager/File/SIXEL.pm, or if a
-# tag for the current $(VERSION) already exists. See RELEASING.md.
+# $VERSION differs from the one in lib/Imager/File/SIXEL.pm, if a tag
+# for the current $(VERSION) already exists, or if the documentation
+# is out of date (docs-check). See RELEASING.md.
 #
 # disttest and dist run as separate sub-makes on purpose: as
 # prerequisites of one target they would share a single distdir
@@ -75,7 +119,7 @@ sub MY::postamble {
 version-check :
 	@perl -ne 'if (/^\s*our \$$VERSION\s*=\s*\x27([^\x27]*)\x27/ && $$1 ne "$(VERSION)") { print "ERROR: $$ARGV has \$$VERSION $$1, expected $(VERSION)\n"; $$failed = 1 } END { exit($$failed ? 1 : 0) }' $$(find lib -name '*.pm')
 
-release-check : version-check
+release-check : version-check docs-check
 	@git diff-index --quiet HEAD -- || { \
 	    echo "ERROR: git working tree is dirty; commit or stash first."; \
 	    exit 1; \

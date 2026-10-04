@@ -4,4 +4,4 @@ use Test2::V0;
 
 use Test::Pod 1.00;
 
-all_pod_files_ok(all_pod_files(qw(lib examples)));
+all_pod_files_ok(all_pod_files(qw(lib examples tools)));
