@@ -2,11 +2,12 @@
 # Converts the documentation of Imager::File::SIXEL into Markdown:
 # README.md and the pages in docs/.
 #
-# Pod::Markdown with four changes: links between the pages of this
-# distribution point to their Markdown files, the indentation that all
-# lines of a verbatim block share is removed, each verbatim block is
-# fenced with the language set by the last '=for highlighter' paragraph,
-# and tables in 'text' blocks become Markdown tables.
+# Pod::Markdown with five changes: links between the pages of this
+# distribution point to their Markdown files, images in html blocks
+# point to their raw files on GitHub, the indentation that all lines of
+# a verbatim block share is removed, each verbatim block is fenced with
+# the language set by the last '=for highlighter' paragraph, and tables
+# in 'text' blocks become Markdown tables.
 #
 # Copyright (C) 2026 davenonymous.
 #
@@ -38,6 +39,10 @@ package My::Pod::Markdown {
 
 	use constant DEFAULT_LANGUAGE => 'perl';
 
+	# MetaCPAN shows Markdown files with relative images as gray
+	# placeholders, so they point to the files in the repository.
+	use constant IMAGE_URL_BASE => 'https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master';
+
 	die "Pod::Markdown has no _indent_verbatim(); this script needs an update\n"
 		unless Pod::Markdown->can('_indent_verbatim');
 
@@ -67,12 +72,14 @@ package My::Pod::Markdown {
 	# of the following verbatim blocks, as on MetaCPAN. Its text is
 	# collected here instead of being written to the output.
 	sub start_for($self, $attr) {
+		$self->{inHtmlBlock} = 1 if $attr->{target} eq 'html';
 		return $self->SUPER::start_for($attr) unless $attr->{target} eq 'highlighter';
 		$self->{highlighterText} = '';
 		return;
 	}
 
 	sub end_for($self, @args) {
+		delete $self->{inHtmlBlock};
 		return $self->SUPER::end_for(@args) unless defined $self->{highlighterText};
 		my $setting = delete $self->{highlighterText};
 		my ($language) = $setting =~ /\A\s*(?:language=)?([\w+#-]+)\s*\z/
@@ -92,9 +99,19 @@ package My::Pod::Markdown {
 	}
 
 	sub handle_text($self, $text) {
-		return $self->SUPER::handle_text($text) unless defined $self->{highlighterText};
-		$self->{highlighterText} .= $text;
-		return;
+		if (defined $self->{highlighterText}) {
+			$self->{highlighterText} .= $text;
+			return;
+		}
+		$text = absoluteImageUrls($text) if $self->{inHtmlBlock};
+		return $self->SUPER::handle_text($text);
+	}
+
+	# An image path relative to the top directory, such as
+	# /images/NAME.png, becomes the URL of its raw file on GitHub.
+	sub absoluteImageUrls($html) {
+		$html =~ s{(<img\b[^>]*?\bsrc=")/}{$1 . IMAGE_URL_BASE . '/'}ge;
+		return $html;
 	}
 
 	# A fenced block without the indentation its lines share. In a text
@@ -247,7 +264,7 @@ Markdown, run from the top directory of the distribution:
   lib/Imager/File/SIXEL/Format.pod    -> docs/Format.md
 
 Files whose content would not change are left alone. The conversion is
-done by L<Pod::Markdown>, with four changes:
+done by L<Pod::Markdown>, with five changes:
 
 =over
 
@@ -258,6 +275,16 @@ C<< LE<lt>Imager::File::SIXEL::Examples/Handle errorsE<gt> >>, points to
 its Markdown file, relative to the file that contains the link, for
 example C<docs/Examples.md#handle-errors>. Other links point to MetaCPAN
 as usual.
+
+=item *
+
+In an C<html> block, an image path that starts with C</>, such as
+C<< <img src="/images/colors.png"> >>, is relative to the top directory
+of the distribution. It becomes the URL of the file in the C<master>
+branch on GitHub, for example
+C<https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master/images/colors.png>,
+because MetaCPAN shows relative images in Markdown files as gray
+placeholders. MetaCPAN resolves the original path in the pod itself.
 
 =item *
 

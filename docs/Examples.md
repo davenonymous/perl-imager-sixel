@@ -264,7 +264,7 @@ correctly on terminals with few color registers, at the cost of
 quality:
 
 <div>
-    <p><img src="/images/sixel-max-colors.png" alt="The test picture, a sunset with a sky gradient, a glowing sun, hills and a rainbow strip, and the same picture written with sixel_max_colors 256, 64, 16 and 4. With 256 colors it looks like the original. With 64 colors the gradients show fine dots. With 16 colors the gradients become grainy dot patterns with stray red, green and cyan dots, and the rainbow strip keeps about eight hues. With 4 colors only dark blue, purple, sand and green remain."></p>
+    <p><img src="https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master/images/sixel-max-colors.png" alt="The test picture, a sunset with a sky gradient, a glowing sun, hills and a rainbow strip, and the same picture written with sixel_max_colors 256, 64, 16 and 4. With 256 colors it looks like the original. With 64 colors the gradients show fine dots. With 16 colors the gradients become grainy dot patterns with stray red, green and cyan dots, and the rainbow strip keeps about eight hues. With 4 colors only dark blue, purple, sand and green remain."></p>
 </div>
 
 ## Choose how colors are approximated (`sixel_dither`)
@@ -280,7 +280,7 @@ palette of 16 colors (`sixel_max_colors => 16`), which makes the
 differences easy to see:
 
 <div>
-    <p><img src="/images/sixel-dither.png" alt="The original test picture and three versions with 16 colors. diffusion: smooth-looking gradients made of irregular dots, with some stray red, green and cyan dots. ordered: gradients made of a regular cross-hatch pattern. none: no dots, but the gradients turn into wide flat bands. The SIXEL data of none is the smallest, that of ordered the largest."></p>
+    <p><img src="https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master/images/sixel-dither.png" alt="The original test picture and three versions with 16 colors. diffusion: smooth-looking gradients made of irregular dots, with some stray red, green and cyan dots. ordered: gradients made of a regular cross-hatch pattern. none: no dots, but the gradients turn into wide flat bands. The SIXEL data of none is the smallest, that of ordered the largest."></p>
 </div>
 
 - `'diffusion'` (the default) gives the best still images.
@@ -309,7 +309,7 @@ computed palette. With the default dithering its SIXEL data can even
 be larger than with a computed palette:
 
 <div>
-    <p><img src="/images/sixel-palette.png" alt="The original test picture; the adaptive palette, which looks like the original; the webmap palette, with visible dot patterns in the sky and the hills and slightly more SIXEL data than adaptive; and the webmap palette without dithering, where the gradients turn into a few wide flat bands and the SIXEL data is about a fifth as large."></p>
+    <p><img src="https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master/images/sixel-palette.png" alt="The original test picture; the adaptive palette, which looks like the original; the webmap palette, with visible dot patterns in the sky and the hills and slightly more SIXEL data than adaptive; and the webmap palette without dithering, where the gradients turn into a few wide flat bands and the SIXEL data is about a fifth as large."></p>
 </div>
 
 ## Use your own (custom) palette (`colors`)
@@ -331,7 +331,7 @@ these colors, approximated as set by
 [`sixel_dither`](../README.md#sixel_dither):
 
 <div>
-    <p><img src="/images/colors.png" alt="The original test picture and the picture written with four palettes passed with colors. Eight colors picked by hand from the picture: recognizable, but with coarse dots, and only five hues left in the rainbow strip. The eight basic terminal colors: a busy pattern of saturated dots. Four grays: a gray picture. Black and white: a pattern of black and white dots."></p>
+    <p><img src="https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master/images/colors.png" alt="The original test picture and the picture written with four palettes passed with colors. Eight colors picked by hand from the picture: recognizable, but with coarse dots, and only five hues left in the rainbow strip. The eight basic terminal colors: a busy pattern of saturated dots. Four grays: a gray picture. Black and white: a pattern of black and white dots."></p>
 </div>
 
 A fixed palette is also the best choice for animations: compute it
@@ -382,7 +382,7 @@ painted. The checkerboard in the figure marks the pixels that are not
 painted:
 
 <div>
-    <p><img src="/images/sixel-alpha-threshold.png" alt="A red disc that fades out towards its edge and a blue disc inside a thin ring, on a transparent background shown as a gray checkerboard. With threshold 0 every pixel is painted: the transparent background becomes black and the faded red area a large solid red disc. With threshold 1 the background stays transparent, the faded red area becomes a large solid red disc, and the anti-aliased ring gets thicker. With 128, the default, a medium-sized red disc remains. With 224 only a small red dot remains and the thin ring breaks up into dots."></p>
+    <p><img src="https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master/images/sixel-alpha-threshold.png" alt="A red disc that fades out towards its edge and a blue disc inside a thin ring, on a transparent background shown as a gray checkerboard. With threshold 0 every pixel is painted: the transparent background becomes black and the faded red area a large solid red disc. With threshold 1 the background stays transparent, the faded red area becomes a large solid red disc, and the anti-aliased ring gets thicker. With 128, the default, a medium-sized red disc remains. With 224 only a small red dot remains and the thin ring breaks up into dots."></p>
 </div>
 
 Painted pixels always get their full color: the encoder does not blend
@@ -417,7 +417,7 @@ honors the ratio draws an image written with `sixel_pan => 2`; the
 pixel data of both panels is identical:
 
 <div>
-    <p><img src="/images/sixel-pan-pad.png" alt="Left: the test picture with square pixels. Right: the same pixel data drawn twice as high, as a terminal that honors sixel_pan 2 shows it. Both SIXEL data sizes are the same."></p>
+    <p><img src="https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master/images/sixel-pan-pad.png" alt="Left: the test picture with square pixels. Right: the same pixel data drawn twice as high, as a terminal that honors sixel_pan 2 shows it. Both SIXEL data sizes are the same."></p>
 </div>
 
 When reading, the decoder does not stretch the image. It reports the

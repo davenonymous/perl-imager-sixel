@@ -129,9 +129,9 @@ exit($options{check} && $outdated ? 1 : 0);
 
 # Dies unless the pod files together show exactly the pictures this
 # script renders, each through an <img src="/images/NAME.png"> tag. The
-# path is relative to the root of the repository and of the
-# distribution, which is how GitHub (the Markdown files) and MetaCPAN
-# (the pod) resolve it.
+# path is relative to the root of the distribution, which is how
+# MetaCPAN resolves it in the pod; tools/pod2markdown turns it into a
+# raw GitHub URL for the Markdown files.
 sub checkPodPictures($podFiles, @names) {
 	my %shown;
 	foreach my $podFile ($podFiles->@*) {
