@@ -1,0 +1,10 @@
+/blib/
+/Makefile
+/Makefile.old
+/MYMETA.*
+/pm_to_blib
+/SIXEL.c
+/SIXEL.bs
+*.o
+/testout/
+/Imager-File-SIXEL-*
