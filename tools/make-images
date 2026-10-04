@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 # Renders the example images shown in the documentation of
-# Imager::File::SIXEL into images/.
+# Imager::File::SIXEL into images/ and points the image URLs in the pod
+# to the tag of the current release.
 #
 # Each image compares write options side by side. Every panel is the
 # test picture encoded as SIXEL with the panel's options and decoded
@@ -34,6 +35,10 @@ use constant {
 	LINE_HEIGHT    => 17,
 	CHECKER_SIZE   => 8,
 };
+
+# MetaCPAN shows images in the pod only with absolute URLs, so the pod
+# points to the raw files in the repository, at the tag of the release.
+use constant IMAGE_URL_BASE => 'https://raw.githubusercontent.com/davenonymous/perl-imager-sixel';
 
 my %options = (output => 'images');
 GetOptions(\%options, 'output=s', 'check', 'help')
@@ -115,11 +120,10 @@ my @figures = (
 	},
 );
 
-checkPodPictures([glob('lib/Imager/File/SIXEL.pm lib/Imager/File/SIXEL/*.pod')], map { $_->{name} } @figures);
+my $outdated = updatePodPictures([glob('lib/Imager/File/SIXEL.pm lib/Imager/File/SIXEL/*.pod')], "v$Imager::File::SIXEL::VERSION", $options{check}, map { $_->{name} } @figures);
 
 my $font = labelFont();
 my %sources = (scene => scenePicture(), alpha => alphaPicture());
-my $outdated = 0;
 foreach my $figure (@figures) {
 	my $image = renderFigure($figure, $sources{ $figure->{source} }, $font);
 	my $file = File::Spec->catfile($options{output}, "$figure->{name}.png");
@@ -128,17 +132,22 @@ foreach my $figure (@figures) {
 exit($options{check} && $outdated ? 1 : 0);
 
 # Dies unless the pod files together show exactly the pictures this
-# script renders, each through an <img src="/images/NAME.png"> tag. The
-# path is relative to the root of the distribution, which is how
-# MetaCPAN resolves it in the pod; tools/pod2markdown turns it into a
-# raw GitHub URL for the Markdown files.
-sub checkPodPictures($podFiles, @names) {
-	my %shown;
+# script renders, each through an
+# <img src="IMAGE_URL_BASE/TAG/images/NAME.png"> tag, then points every
+# such tag to $tag. Returns the number of pod files that were (or, with
+# $checkOnly, would be) changed. tools/pod2markdown turns the URLs into
+# those of the master branch for the Markdown files.
+sub updatePodPictures($podFiles, $tag, $checkOnly, @names) {
+	my $imageUrl = qr{<img src="\Q@{[IMAGE_URL_BASE]}\E/[^"/]+/images/([^"/]+)\.png"};
+	my (%shown, %updatedPods);
 	foreach my $podFile ($podFiles->@*) {
-		open(my $in, '<', $podFile) or die "cannot read $podFile: $!\n";
-		my $pod = do { local $/; <$in> };
-		close($in);
-		$shown{$_} = 1 foreach $pod =~ m{<img src="/images/([^"/]+)\.png"}g;
+		my $pod = readFile($podFile);
+		my @imageTags = $pod =~ m{(<img\b[^>]*>)}g;
+		my @badTags = grep { !/^$imageUrl/ } @imageTags;
+		die map {"$podFile: $_ does not start with <img src=\"@{[IMAGE_URL_BASE]}/TAG/images/NAME.png\"\n"} @badTags if @badTags;
+		$shown{$_} = 1 foreach $pod =~ m{$imageUrl}g;
+		(my $updated = $pod) =~ s{(<img src="\Q@{[IMAGE_URL_BASE]}\E/)[^"/]+/}{$1$tag/}g;
+		$updatedPods{$podFile} = $updated if $updated ne $pod;
 	}
 	my %rendered = map { $_ => 1 } @names;
 	my @problems = (
@@ -146,9 +155,11 @@ sub checkPodPictures($podFiles, @names) {
 		(map {"no pod shows images/$_.png\n"} grep { !$shown{$_} } @names),
 	);
 	die @problems if @problems;
+
+	storeFile($_, $updatedPods{$_}, $checkOnly) foreach sort keys %updatedPods;
+	return scalar keys %updatedPods;
 }
 
-# The font the labels are drawn with, found through fontconfig.
 sub labelFont() {
 	die "Imager was built without FreeType support; it is needed for the labels\n"
 		unless $Imager::formats{ft2};
@@ -323,23 +334,31 @@ sub onCheckerboard($picture) {
 sub storeImage($image, $file, $checkOnly) {
 	my $png = '';
 	$image->write(data => \$png, type => 'png') or die $image->errstr, "\n";
-	my $current = '';
-	if (open(my $in, '<:raw', $file)) {
-		local $/;
-		$current = <$in>;
-		close($in);
-	}
+	my $current = -e $file ? readFile($file) : '';
 	return 0 if $current eq $png;
 
+	storeFile($file, $png, $checkOnly);
+	return 1;
+}
+
+sub readFile($file) {
+	open(my $in, '<:raw', $file) or die "cannot read $file: $!\n";
+	local $/;
+	my $content = <$in>;
+	close($in);
+	return $content;
+}
+
+# Writes $content to $file, or with $checkOnly reports it as out of date.
+sub storeFile($file, $content, $checkOnly) {
 	if ($checkOnly) {
 		say "out of date: $file";
-		return 1;
+		return;
 	}
 	open(my $out, '>:raw', $file) or die "cannot write $file: $!\n";
-	print {$out} $png;
+	print {$out} $content;
 	close($out) or die "cannot write $file: $!\n";
 	say "wrote $file";
-	return 1;
 }
 
 __END__
@@ -361,10 +380,13 @@ left alone. Run it from the top directory of the distribution.
 
 Before rendering anything, it checks that the pod files
 F<lib/Imager/File/SIXEL.pm> and F<lib/Imager/File/SIXEL/*.pod>
-together show exactly the pictures it renders, each with an
-C<< <img src="/images/NAME.png"> >> tag, and stops with an error
-otherwise. The path is relative to the top directory, which is how
-GitHub resolves it in the Markdown files and MetaCPAN in the pod.
+together show exactly the pictures it renders, each with a tag like
+C<< <img src="https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/v1.000/images/NAME.png"> >>,
+and stops with an error otherwise. It then points every such tag to
+the tag C<vVERSION> of the current C<$Imager::File::SIXEL::VERSION>,
+so that MetaCPAN shows each release with its own pictures. MetaCPAN
+shows images in the pod only with absolute URLs; the pictures appear
+once the tag is pushed to GitHub.
 
 Needs Imager with PNG and FreeType support and fontconfig's
 C<fc-match> to find the DejaVu Sans font for the labels.
@@ -379,8 +401,8 @@ Where to write the images, F<images> by default.
 
 =item --check
 
-Write nothing; list the images that are out of date and exit with
-status 1 if there are any.
+Write nothing; list the images and pod files that are out of date and
+exit with status 1 if there are any.
 
 =back
 

@@ -4,7 +4,7 @@
 #
 # Pod::Markdown with five changes: links between the pages of this
 # distribution point to their Markdown files, images in html blocks
-# point to their raw files on GitHub, the indentation that all lines of
+# point to their raw files in the master branch on GitHub, the indentation that all lines of
 # a verbatim block share is removed, each verbatim block is fenced with
 # the language set by the last '=for highlighter' paragraph, and tables
 # in 'text' blocks become Markdown tables.
@@ -39,9 +39,10 @@ package My::Pod::Markdown {
 
 	use constant DEFAULT_LANGUAGE => 'perl';
 
-	# MetaCPAN shows Markdown files with relative images as gray
-	# placeholders, so they point to the files in the repository.
-	use constant IMAGE_URL_BASE => 'https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master';
+	# The pod points to the images at the tag of the release, which does
+	# not exist before the release; the Markdown files on GitHub show the
+	# images of the master branch instead.
+	use constant IMAGE_URL_BASE => 'https://raw.githubusercontent.com/davenonymous/perl-imager-sixel';
 
 	die "Pod::Markdown has no _indent_verbatim(); this script needs an update\n"
 		unless Pod::Markdown->can('_indent_verbatim');
@@ -103,14 +104,14 @@ package My::Pod::Markdown {
 			$self->{highlighterText} .= $text;
 			return;
 		}
-		$text = absoluteImageUrls($text) if $self->{inHtmlBlock};
+		$text = masterImageUrls($text) if $self->{inHtmlBlock};
 		return $self->SUPER::handle_text($text);
 	}
 
-	# An image path relative to the top directory, such as
-	# /images/NAME.png, becomes the URL of its raw file on GitHub.
-	sub absoluteImageUrls($html) {
-		$html =~ s{(<img\b[^>]*?\bsrc=")/}{$1 . IMAGE_URL_BASE . '/'}ge;
+	# An image URL at a tag, such as IMAGE_URL_BASE/v1.000/images/NAME.png,
+	# becomes the URL of the same file in the master branch.
+	sub masterImageUrls($html) {
+		$html =~ s{(<img\b[^>]*?\bsrc="\Q@{[IMAGE_URL_BASE]}\E/)[^"/]+/}{$1master/}g;
 		return $html;
 	}
 
@@ -278,13 +279,15 @@ as usual.
 
 =item *
 
-In an C<html> block, an image path that starts with C</>, such as
-C<< <img src="/images/colors.png"> >>, is relative to the top directory
-of the distribution. It becomes the URL of the file in the C<master>
-branch on GitHub, for example
-C<https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master/images/colors.png>,
-because MetaCPAN shows relative images in Markdown files as gray
-placeholders. MetaCPAN resolves the original path in the pod itself.
+In an C<html> block, an image URL of a raw file on GitHub at a tag,
+such as
+C<https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/v1.000/images/colors.png>,
+becomes the URL of the same file in the C<master> branch, for example
+C<https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/master/images/colors.png>.
+The pod points to the tag of the release, because MetaCPAN shows images
+with relative paths as gray placeholders, but that tag does not exist
+on GitHub before the release. F<tools/make-images> keeps the tag in the
+pod up to date.
 
 =item *
 

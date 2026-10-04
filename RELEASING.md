@@ -70,10 +70,14 @@ This dist uses plain `ExtUtils::MakeMaker` plus
    out of date, or finds that the pod shows a picture that
    `tools/make-images` does not render or the other way round.
 
-   The pod shows the pictures with `<img src="/images/NAME.png">`.
-   GitHub resolves the path from the top of the repository for the
-   Markdown files, MetaCPAN from the top of the dist for the pod, so
-   `images/` must stay in `MANIFEST`.
+   The pod shows the pictures with
+   `<img src="https://raw.githubusercontent.com/davenonymous/perl-imager-sixel/vVERSION/images/NAME.png">`,
+   because MetaCPAN shows images with relative paths as gray
+   placeholders. `make docs` sets `vVERSION` to the tag of the current
+   `$VERSION`, so each release on MetaCPAN shows its own pictures once
+   its tag is pushed (step 9). The Markdown files point to the same
+   files in the `master` branch instead. Keep `images/` in `MANIFEST`:
+   the pod names the files in the dist for readers without HTML.
 
 5. If prerequisites changed, update both `Makefile.PL` (what the CPAN
    toolchain reads) and `cpanfile` (what `cpanm --installdeps .` and

@@ -70,9 +70,11 @@ sub MY::postamble {
 # blocks, fences them with the language set by '=for highlighter' and
 # turns tables in 'text' blocks into Markdown tables. tools/make-images
 # renders the pictures in images/ with the encoder in blib/, so this
-# distribution is built first; with
-# --check it also fails when the pod shows a picture that it does not
-# render, or does not show one that it renders.
+# distribution is built first, and points the image URLs in the pod to
+# the tag of the current $VERSION on GitHub. It fails when the pod shows
+# a picture that it does not render, or does not show one that it
+# renders; with --check it also fails when an image or an image URL is
+# out of date.
 
 .PHONY: readme images docs docs-check
 
