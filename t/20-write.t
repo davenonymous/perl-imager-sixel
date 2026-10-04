@@ -111,6 +111,10 @@ subtest 'images with few colours round trip exactly' => sub {
 		is([$decoded->getwidth, $decoded->getheight], $size, "size $size->@*");
 		ok(rgbSamples($decoded) eq rgbSamples($img), "pixels of $size->@*");
 	}
+
+	my $img = Imager->new(xsize => 2, ysize => 1);
+	$img->setpixel(x => 1, y => 0, color => [1, 0, 0]);
+	is(scalar keys registers(encode($img))->%*, 1, 'colours that round alike share a register');
 };
 
 subtest 'images with many colours' => sub {
@@ -175,6 +179,7 @@ subtest 'caller supplied palette' => sub {
 	like(encodeError(gradientImage(8, 6), colors => [('red') x 257]),   qr/colors must hold from 1 to 256/,      'oversized palette');
 	like(encodeError(gradientImage(8, 6), colors => ['no-such-color']), qr/colors entry 0 is not a valid color/, 'invalid colour');
 	like(encodeError(gradientImage(8, 6), colors => ['red', undef]),    qr/colors entry 1 is not a valid color/, 'undefined colour');
+	like(encodeError(gradientImage(8, 6), colors => [[300, 0, 0]]),     qr/colors entry 0 is not a valid color/, 'RGB value out of range');
 };
 
 subtest 'paletted images' => sub {
@@ -185,6 +190,11 @@ subtest 'paletted images' => sub {
 	my $data = encode($img);
 	is(registers($data), { 2 => [0, 100, 0], 3 => [0, 0, 100] }, 'used palette entries become their registers');
 	ok(rgbSamples(decode($data)) eq rgbSamples($img), 'pixels round trip');
+
+	my $alike = Imager->new(xsize => 2, ysize => 1, type => 'paletted');
+	$alike->addcolors(colors => [map { Imager::Color->new($_->@*) } [0, 0, 0], [1, 0, 0]]);
+	$alike->setpixel(x => 1, y => 0, color => [1, 0, 0]);
+	is(registers(encode($alike)), { 0 => [0, 0, 0] }, 'entries that round alike share a register');
 
 	my $large = gradientImage(32, 32)->to_paletted(make_colors => 'mediancut', max_colors => 64);
 	ok(keys(registers(encode($large, sixel_max_colors => 8))->%*) <= 8,
@@ -278,6 +288,8 @@ subtest 'option validation' => sub {
 	my @cases = (
 		[[sixel_dither          => 'random'], qr/unknown sixel_dither value 'random'/],
 		[[sixel_palette         => 'vga'],    qr/unknown sixel_palette value 'vga'/],
+		[[sixel_palette         => "webmap\0x"], qr/unknown sixel_palette value/],
+		[[sixel_dither          => {}],       qr/Unknown reference type HASH supplied for sixel_dither/],
 		[[sixel_max_colors      => 0],        qr/sixel_max_colors must be an integer from 1 to 256/],
 		[[sixel_max_colors      => 257],      qr/sixel_max_colors must be an integer from 1 to 256/],
 		[[sixel_max_colors      => '12.7'],   qr/sixel_max_colors must be an integer from 1 to 256/],

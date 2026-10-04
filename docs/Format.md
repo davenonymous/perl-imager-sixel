@@ -66,7 +66,10 @@ control characters CAN (0x18) and SUB (0x1A).
 - Spaces, line breaks and control characters inside the image are
 ignored, except those that end the image (ESC, CAN, SUB and the byte
 0x9C, see above). Characters that have no meaning in SIXEL are ignored
-too.
+too. Inside the numeric parameters of a command, a space ends a number,
+so `#1 2` is read as `#1;2`, while a line break or another control
+character is skipped, so `#1`, a line break and `2` are read as
+`#12`.
 - An image cut off by the end of the input (truncated) is an error,
 unless [`allow_incomplete`](../README.md#allow_incomplete) is set.
 

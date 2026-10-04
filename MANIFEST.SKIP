@@ -17,4 +17,3 @@
 \.obj$
 \.dll$
 \.def$
-^CODE-ISSUES\.md$

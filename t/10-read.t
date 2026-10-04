@@ -55,6 +55,12 @@ subtest 'repeat introducer' => sub {
 	is(pixel($img, 6, 5), [255, 255, 255, 255], 'last column painted');
 };
 
+subtest 'a space ends a numeric parameter' => sub {
+	my $img = decode(sixel('#1 2;2;100;0;0#12~'));
+	ok($img, 'decoded') or return;
+	isnt(pixel($img, 0, 0), [255, 0, 0, 255], '#1 2 does not define register 12');
+};
+
 subtest 'carriage return and next line' => sub {
 	my $img = decode(sixel('#1;2;100;0;0~~$#2;2;0;0;100?~-#1~'));
 	ok($img, 'decoded') or return;
@@ -230,6 +236,7 @@ subtest 'multiple images' => sub {
 	is(pixel($second, 0, 0), [0, 255, 0, 255], 'page 1 is the second image');
 
 	like(decodeError($data, page => 3), qr/page 3 not found/, 'missing page');
+	like(decodeError($data, page => '4294967297'), qr/page must be a non-negative integer/, 'page beyond the C int range');
 
 	my $unterminated = "\ePq#1;2;100;0;0~" . sixel('#1;2;0;0;100~~');
 	my @split = Imager->read_multi(data => $unterminated, type => 'sixel');

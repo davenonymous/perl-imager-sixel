@@ -58,9 +58,8 @@ to a terminal or save to a file. You choose:
 or by `img2sixel`, or a recording of terminal output, back into an
 Imager image (["READING"](#reading)).
 
-The encoder is written in C and is fast enough to drive animations: a
-640 x 480 image is encoded in 3 to 16 milliseconds on an Intel Core
-i5-12600K, depending on the settings and the image (["PERFORMANCE"](#performance)).
+The encoder is written in C and is fast enough to drive animations,
+depending on the settings and the image (["PERFORMANCE"](#performance)).
 
 You use this module through Imager's usual methods `read()`,
 `read_multi()`, `write()` and `write_multi()` with
@@ -339,7 +338,7 @@ is accepted and how the decoded image is built.
 Which image to read with `read()` or `Imager->new(...)`, counting
 from 0.
 
-**Values:** a non-negative integer.
+**Values:** an integer from 0 to 2147483647.
 
 **Default:** 0, the first image.
 
@@ -466,9 +465,10 @@ the image"](#write-options-are-stored-on-the-image)).
 Do not pass a reference other than an array reference as the value of
 a `sixel_` option:
 
-- A hash or code reference is not reported as an error: the write
-succeeds, but the option and possibly other `sixel_` options passed
-with it are ignored.
+- A hash or code reference makes the write fail with `Unknown reference
+type HASH supplied for sixel_dither` or a similar message. Other
+`sixel_` options passed with it may already be stored on the image
+(see ["Write options are stored on the image"](#write-options-are-stored-on-the-image)).
 - An [Imager::Color](https://metacpan.org/pod/Imager%3A%3AColor) object is stored as a string such as
 `color(1,2,3,255)` and fails as an invalid value.
 - An array reference gives each image its own value with
@@ -548,8 +548,9 @@ Your own palette.
 Each entry is one of:
 
 - an [Imager::Color](https://metacpan.org/pod/Imager%3A%3AColor) object;
-- a reference to an array of red, green and blue values from 0 to 255,
-such as `[255, 128, 0]`;
+- a reference to an array of red, green and blue values, each an
+integer from 0 to 255, such as `[255, 128, 0]`; a fourth value, the
+alpha value, is allowed;
 - a string that `Imager::Color->new` accepts, such as `'#FF8000'`
 or `'red'`.
 
@@ -710,16 +711,18 @@ The first rule that applies decides:
 palette is used.
 3. If the image is a paletted image whose color table has at most
 [`sixel_max_colors`](#sixel_max_colors) entries, its color table is
-used: color register _n_ holds color table entry _n_. This is the
+used: color register _n_ holds color table entry _n_, except that
+an entry that rounds to the same SIXEL percentages as an earlier entry
+uses the register of that earlier entry. This is the
 fastest way and loses nothing apart from the rounding to SIXEL
 percentages. Use it to control the palette yourself, see
 ["Use the palette of a paletted image" in Imager::File::SIXEL::Examples](docs/Examples.md#use-the-palette-of-a-paletted-image).
 4. If the painted pixels of the image (see
 [`sixel_alpha_threshold`](#sixel_alpha_threshold)) have at most
 [`sixel_max_colors`](#sixel_max_colors) different colors, these
-colors are used. The colors are counted before they are rounded to
+colors are used. The colors are counted after they are rounded to
 SIXEL percentages, so two colors that round to the same percentages
-count twice.
+count once and share a color register.
 5. Otherwise an adaptive palette of at most
 [`sixel_max_colors`](#sixel_max_colors) colors is computed.
 
@@ -931,7 +934,7 @@ explanation.
 
 - `page must be a non-negative integer`
 
-    The [`page`](#page) option is not 0 or a positive integer.
+    The [`page`](#page) option is not an integer from 0 to 2147483647.
 
 - `premature end of SIXEL data`
 
@@ -982,7 +985,15 @@ explanation.
 - `colors entry N is not a valid color`
 
     The [`colors`](#colors) option is not an array reference, has too few or too
-    many entries, or entry N (counting from 0) is not a color.
+    many entries, or entry N (counting from 0) is not a color. An array of
+    values is not a color if it does not hold 3 or 4 integers from 0 to
+    255.
+
+- `Unknown reference type ... supplied for ...`
+
+    A `sixel_` option has a reference as its value that is neither an
+    array reference nor, inside an array, an [Imager::Color](https://metacpan.org/pod/Imager%3A%3AColor) object; see
+    ["Write options"](#write-options). This message comes from Imager.
 
 - `no images to write`
 

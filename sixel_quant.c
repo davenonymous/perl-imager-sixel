@@ -8,7 +8,8 @@
  *
  * Palette construction:
  *
- *   exact     - images with few colours keep them unchanged.
+ *   exact     - images with few colours keep them, rounded to SIXEL
+ *               percentages; colours that round alike share an entry.
  *   adaptive  - a 5/6/5 bit histogram is split into boxes, always
  *               splitting the box whose best axis aligned cut removes
  *               the most squared error (a greedy variant of Wu's
@@ -42,15 +43,18 @@ sixel_sample_from_percent(int percent) {
 	return (percent * 255 + 50) / 100;
 }
 
+static unsigned char
+snapped_sample(int sample) {
+	return (unsigned char)sixel_sample_from_percent(sixel_percent_from_sample(sample));
+}
+
 void
 sixel_palette_snap(sixel_palette *palette) {
 	int i, c;
 
 	for (i = 0; i < palette->size; ++i) {
-		for (c = 0; c < 3; ++c) {
-			int percent = sixel_percent_from_sample(palette->rgb[i][c]);
-			palette->rgb[i][c] = (unsigned char)sixel_sample_from_percent(percent);
-		}
+		for (c = 0; c < 3; ++c)
+			palette->rgb[i][c] = snapped_sample(palette->rgb[i][c]);
 	}
 }
 
@@ -93,26 +97,33 @@ int
 sixel_palette_exact(const unsigned char *rgba, size_t pixel_count, int max_colors,
                     sixel_palette *palette, uint16_t *map) {
 	exact_table table;
-	uint32_t last_key = 0;
+	unsigned char snapped[256];
+	uint32_t last_pixel = 0;
 	uint16_t last_index = 0;
 	size_t i;
+	int sample;
 
 	memset(table.key, 0, sizeof(table.key));
+	for (sample = 0; sample < 256; ++sample)
+		snapped[sample] = snapped_sample(sample);
 	palette->size = 0;
 
 	for (i = 0; i < pixel_count; ++i, rgba += 4) {
-		uint32_t key, slot;
+		uint32_t pixel, key, slot;
 
 		if (!PIXEL_PAINTED(rgba)) {
 			map[i] = SIXEL_TRANSPARENT;
 			continue;
 		}
-		key = EXACT_KEY_USED | ((uint32_t)rgba[0] << 16) | ((uint32_t)rgba[1] << 8) | rgba[2];
-		if (key == last_key) {
+		pixel = EXACT_KEY_USED | ((uint32_t)rgba[0] << 16) | ((uint32_t)rgba[1] << 8) | rgba[2];
+		if (pixel == last_pixel) {
 			map[i] = last_index;
 			continue;
 		}
 
+		/* colours are counted as SIXEL writes them */
+		key = EXACT_KEY_USED | ((uint32_t)snapped[rgba[0]] << 16) | ((uint32_t)snapped[rgba[1]] << 8)
+		      | snapped[rgba[2]];
 		slot = exact_slot(key);
 		while (table.key[slot] != 0 && table.key[slot] != key)
 			slot = (slot + 1) & (EXACT_HASH_SIZE - 1);
@@ -122,15 +133,16 @@ sixel_palette_exact(const unsigned char *rgba, size_t pixel_count, int max_color
 				return 0;
 			table.key[slot] = key;
 			table.index[slot] = (uint16_t)palette->size;
-			memcpy(palette->rgb[palette->size], rgba, 3);
+			palette->rgb[palette->size][0] = snapped[rgba[0]];
+			palette->rgb[palette->size][1] = snapped[rgba[1]];
+			palette->rgb[palette->size][2] = snapped[rgba[2]];
 			++palette->size;
 		}
-		last_key = key;
+		last_pixel = pixel;
 		last_index = table.index[slot];
 		map[i] = last_index;
 	}
 
-	sixel_palette_snap(palette);
 	return 1;
 }
 

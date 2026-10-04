@@ -366,7 +366,9 @@ If the image is a paletted image whose color table has at most
 L<C<sixel_max_colors>|Imager::File::SIXEL/sixel_max_colors> entries,
 the encoder uses that color table as the palette, unchanged apart from
 the rounding to SIXEL percentages, and does not dither: color register
-I<n> gets color table entry I<n>. This lets you control the colors with
+I<n> gets color table entry I<n>. An entry that rounds to the same
+color as an earlier entry uses the earlier entry's register instead.
+This lets you control the colors with
 any of Imager's methods, see L<Imager::ImageTypes/to_paletted()>.
 Images read from SIXEL data are paletted when they have at most 256
 colors (see L<Imager::File::SIXEL::Format/Image type>); images read

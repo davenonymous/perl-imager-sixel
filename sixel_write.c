@@ -36,7 +36,6 @@
 #define OUTPUT_TOKEN_MAX 64
 
 #define DEFAULT_ALPHA_THRESHOLD 128
-#define OPTION_TEXT_MAX 40
 
 typedef enum {
 	PALETTE_ADAPTIVE,
@@ -89,21 +88,30 @@ read_int_option(i_img *im, const char *name, int minimum, int maximum, int *valu
 	return 1;
 }
 
-/* Reads a keyword option, storing the index of the matching keyword. */
+/* Reads a keyword option, storing the index of the matching keyword.
+ * The whole tag value must match, so an embedded NUL byte or trailing
+ * text makes it unknown.
+ */
 static int
 read_keyword_option(i_img *im, const char *name, const char *const *keywords, int *value) {
-	char text[OPTION_TEXT_MAX];
+	const i_img_tag *tag;
+	int entry;
 	int i;
 
-	if (!i_tags_get_string(&im->tags, name, 0, text, sizeof(text)))
+	if (!i_tags_find(&im->tags, name, 0, &entry))
 		return 1;
+	tag = im->tags.tags + entry;
+	if (!tag->data) {
+		i_push_errorf(0, "unknown %s value '%d'", name, tag->idata);
+		return 0;
+	}
 	for (i = 0; keywords[i]; ++i) {
-		if (strcmp(text, keywords[i]) == 0) {
+		if ((size_t)tag->size == strlen(keywords[i]) && memcmp(tag->data, keywords[i], (size_t)tag->size) == 0) {
 			*value = i;
 			return 1;
 		}
 	}
-	i_push_errorf(0, "unknown %s value '%s'", name, text);
+	i_push_errorf(0, "unknown %s value '%.*s'", name, tag->size, tag->data);
 	return 0;
 }
 
@@ -224,11 +232,28 @@ fetch_rgba(i_img *im, int alpha_threshold) {
 	return rgba;
 }
 
-/* Paletted images whose palette fits are encoded with that palette. */
+/* Fills register_of with the register each palette entry is written
+ * to: its own index, or that of the first entry with the same colour.
+ */
+static void
+share_identical_registers(const sixel_palette *palette, uint16_t *register_of) {
+	int i, j;
+
+	for (i = 0; i < palette->size; ++i) {
+		for (j = 0; memcmp(palette->rgb[j], palette->rgb[i], 3) != 0; ++j)
+			;
+		register_of[i] = (uint16_t)j;
+	}
+}
+
+/* Paletted images whose palette fits are encoded with that palette.
+ * Entries that round to the same SIXEL colour share a register.
+ */
 static int
 index_paletted(i_img *im, const write_options *opts, indexed_image *indexed) {
 	i_color colors[SIXEL_MAX_PALETTE];
 	int painted[SIXEL_MAX_PALETTE];
+	uint16_t register_of[SIXEL_MAX_PALETTE];
 	int color_count = i_colorcount(im);
 	int alpha_channel = -1;
 	int has_alpha = i_img_alpha_channel(im, &alpha_channel);
@@ -257,6 +282,7 @@ index_paletted(i_img *im, const write_options *opts, indexed_image *indexed) {
 	}
 	indexed->palette.size = color_count;
 	sixel_palette_snap(&indexed->palette);
+	share_identical_registers(&indexed->palette, register_of);
 
 	for (y = 0; y < im->ysize; ++y) {
 		uint16_t *out = indexed->map + (size_t)y * width;
@@ -265,7 +291,7 @@ index_paletted(i_img *im, const write_options *opts, indexed_image *indexed) {
 		i_gpal(im, 0, im->xsize, y, row);
 		for (x = 0; x < width; ++x) {
 			int index = row[x];
-			out[x] = index < color_count && painted[index] ? (uint16_t)index : SIXEL_TRANSPARENT;
+			out[x] = index < color_count && painted[index] ? register_of[index] : SIXEL_TRANSPARENT;
 		}
 	}
 

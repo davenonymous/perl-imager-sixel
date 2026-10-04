@@ -713,18 +713,36 @@ typedef enum {
 	DATA_FAILED
 } data_result;
 
-/* Reads parameter bytes, returning the first byte that is not one. */
+/* Reads parameter bytes, returning the first byte that is not one. A
+ * space ends a number, so digits after it start the next parameter.
+ * Control characters, such as line breaks, are ignored.
+ */
 static int
 read_params(input *in, params *p) {
+	int in_number = 0;
+	int number_ended = 0;
+
 	params_reset(p);
 	for (;;) {
 		int c = input_next(in);
-		if (is_digit(c) || c == ';')
+		if (is_digit(c)) {
+			if (number_ended)
+				params_add(p, ';');
 			params_add(p, c);
-		else if (c == CHAR_EOF || c > 0x20 || c == CHAR_ESC || c == CHAR_CAN || c == CHAR_SUB)
+			in_number = 1;
+			number_ended = 0;
+		}
+		else if (c == ';') {
+			params_add(p, c);
+			in_number = 0;
+			number_ended = 0;
+		}
+		else if (c == ' ') {
+			number_ended = in_number;
+		}
+		else if (c == CHAR_EOF || c > 0x20 || c == CHAR_ESC || c == CHAR_CAN || c == CHAR_SUB) {
 			return c;
-		/* spaces and other control characters, such as line breaks,
-		 * are ignored */
+		}
 	}
 }
 

@@ -13,11 +13,12 @@ our $VERSION = '1.000';
 XSLoader::load(__PACKAGE__, $VERSION);
 
 use constant MAX_PALETTE_SIZE => 256;
+use constant MAX_PAGE         => 2147483647;
 
 sub _readSingle($im, $io, %opts) {
 	my $page = $opts{page} // 0;
 
-	unless ($page =~ /\A[0-9]+\z/) {
+	unless ($page =~ /\A[0-9]+\z/ && $page <= MAX_PAGE) {
 		$im->_set_error('page must be a non-negative integer');
 		return;
 	}
@@ -38,12 +39,25 @@ sub _readMultiple($io, %opts) {
 	return map { bless { IMG => $_, ERRSTR => undef }, 'Imager' } @images;
 }
 
+# True for a reference to an array of red, green and blue values, with
+# an optional alpha value, each an integer from 0 to 255.
+sub _isRgbArray($spec) {
+	return 0 unless $spec->@* == 3 || $spec->@* == 4;
+	foreach my $value ($spec->@*) {
+		return 0 unless defined $value && !ref $value && $value =~ /\A[0-9]+\z/ && $value <= 255;
+	}
+	return 1;
+}
+
 # Converts one entry of the colors option into an Imager::Color, or
 # returns undef.
 sub _paletteColor($spec) {
 	return unless defined $spec;
 	return $spec if blessed($spec) && $spec->isa('Imager::Color');
-	return Imager::Color->new($spec->@*) if ref $spec eq 'ARRAY';
+	if (ref $spec eq 'ARRAY') {
+		return unless _isRgbArray($spec);
+		return Imager::Color->new($spec->@*);
+	}
 	return if ref $spec;
 	return Imager::Color->new($spec);
 }
@@ -78,8 +92,8 @@ sub _writeSingle($im, $io, %opts) {
 	my ($ok, $palette) = _paletteOption($im, $opts{colors});
 	return unless $ok;
 
-	$im->_set_opts(\%opts, 'i_',     $im);
-	$im->_set_opts(\%opts, 'sixel_', $im);
+	$im->_set_opts(\%opts, 'sixel_', $im)
+	  or return;
 
 	unless (i_writesixel($io, $palette, $im->{IMG})) {
 		$im->_set_error(Imager->_error_as_msg);
@@ -96,8 +110,8 @@ sub _writeMultiple($class, $io, $opts, @images) {
 	my ($ok, $palette) = _paletteOption($class, $opts->{colors});
 	return unless $ok;
 
-	$class->_set_opts($opts, 'i_',     @images);
-	$class->_set_opts($opts, 'sixel_', @images);
+	$class->_set_opts($opts, 'sixel_', @images)
+	  or return;
 
 	unless (i_writesixel_multi($io, $palette, map { $_->{IMG} } @images)) {
 		$class->_set_error($class->_error_as_msg);
@@ -636,7 +650,7 @@ is accepted and how the decoded image is built.
 Which image to read with C<read()> or C<< Imager->new(...) >>, counting
 from 0.
 
-B<Values:> a non-negative integer.
+B<Values:> an integer from 0 to 2147483647.
 
 B<Default:> 0, the first image.
 
@@ -769,9 +783,10 @@ a C<sixel_> option:
 
 =item *
 
-A hash or code reference is not reported as an error: the write
-succeeds, but the option and possibly other C<sixel_> options passed
-with it are ignored.
+A hash or code reference makes the write fail with C<Unknown reference
+type HASH supplied for sixel_dither> or a similar message. Other
+C<sixel_> options passed with it may already be stored on the image
+(see L</Write options are stored on the image>).
 
 =item *
 
@@ -870,8 +885,9 @@ an L<Imager::Color> object;
 
 =item *
 
-a reference to an array of red, green and blue values from 0 to 255,
-such as C<[255, 128, 0]>;
+a reference to an array of red, green and blue values, each an
+integer from 0 to 255, such as C<[255, 128, 0]>; a fourth value, the
+alpha value, is allowed;
 
 =item *
 
@@ -1070,7 +1086,9 @@ palette is used.
 
 If the image is a paletted image whose color table has at most
 L<C<sixel_max_colors>|/sixel_max_colors> entries, its color table is
-used: color register I<n> holds color table entry I<n>. This is the
+used: color register I<n> holds color table entry I<n>, except that
+an entry that rounds to the same SIXEL percentages as an earlier entry
+uses the register of that earlier entry. This is the
 fastest way and loses nothing apart from the rounding to SIXEL
 percentages. Use it to control the palette yourself, see
 L<Imager::File::SIXEL::Examples/Use the palette of a paletted image>.
@@ -1080,9 +1098,9 @@ L<Imager::File::SIXEL::Examples/Use the palette of a paletted image>.
 If the painted pixels of the image (see
 L<C<sixel_alpha_threshold>|/sixel_alpha_threshold>) have at most
 L<C<sixel_max_colors>|/sixel_max_colors> different colors, these
-colors are used. The colors are counted before they are rounded to
+colors are used. The colors are counted after they are rounded to
 SIXEL percentages, so two colors that round to the same percentages
-count twice.
+count once and share a color register.
 
 =item 5.
 
@@ -1338,7 +1356,7 @@ L<C<page>|/page> option asks for does not exist.
 
 =item C<page must be a non-negative integer>
 
-The L<C<page>|/page> option is not 0 or a positive integer.
+The L<C<page>|/page> option is not an integer from 0 to 2147483647.
 
 =item C<premature end of SIXEL data>
 
@@ -1400,7 +1418,15 @@ C<'Webmap'> fails, C<'webmap'> works.
 =item C<colors entry N is not a valid color>
 
 The L<C<colors>|/colors> option is not an array reference, has too few or too
-many entries, or entry N (counting from 0) is not a color.
+many entries, or entry N (counting from 0) is not a color. An array of
+values is not a color if it does not hold 3 or 4 integers from 0 to
+255.
+
+=item C<Unknown reference type ... supplied for ...>
+
+A C<sixel_> option has a reference as its value that is neither an
+array reference nor, inside an array, an L<Imager::Color> object; see
+L</Write options>. This message comes from Imager.
 
 =item C<no images to write>
 

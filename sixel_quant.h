@@ -42,9 +42,10 @@ int sixel_sample_from_percent(int percent);
  * alpha byte is either 0 (unpainted) or 255 (painted).
  */
 
-/* Builds a palette of the distinct painted colours and the matching
- * index map. Returns 0, leaving palette and map unspecified, when the
- * image holds more than max_colors distinct colours.
+/* Builds a palette of the distinct painted colours, rounded to SIXEL
+ * percentages, and the matching index map. Returns 0, leaving palette
+ * and map unspecified, when the image holds more than max_colors
+ * distinct colours after rounding.
  */
 int sixel_palette_exact(const unsigned char *rgba, size_t pixel_count, int max_colors,
                         sixel_palette *palette, uint16_t *map);

@@ -80,7 +80,10 @@ control characters CAN (0x18) and SUB (0x1A).
 Spaces, line breaks and control characters inside the image are
 ignored, except those that end the image (ESC, CAN, SUB and the byte
 0x9C, see above). Characters that have no meaning in SIXEL are ignored
-too.
+too. Inside the numeric parameters of a command, a space ends a number,
+so C<#1 2> is read as C<#1;2>, while a line break or another control
+character is skipped, so C<#1>, a line break and C<2> are read as
+C<#12>.
 
 =item *
 
