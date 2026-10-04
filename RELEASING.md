@@ -149,7 +149,8 @@ pull request to `master`:
 - on Linux with every Perl from 5.24, the declared minimum, to the
   latest release;
 - on Windows with the latest Strawberry Perl, which builds the XS code
-  with MinGW gcc and runs `gmake`;
+  with MinGW gcc and runs `gmake`. Its steps run in PowerShell, because
+  Git Bash would run its own MSYS perl instead;
 - once more with the latest Perl for the author tests (`prove -b xt`),
   `make version-check` and `make disttest`.
 

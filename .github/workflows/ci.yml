@@ -29,13 +29,16 @@ jobs:
           - '5.26.3'
           - '5.24.4'
         include:
+          # Git Bash puts its own MSYS perl first in PATH, so Windows
+          # runs the steps in PowerShell to reach Strawberry Perl
           - os: windows-latest
             distribution: strawberry
             perl: latest
+            shell: pwsh
 
     defaults:
       run:
-        shell: bash
+        shell: ${{ matrix.shell || 'bash' }}
 
     steps:
       - name: Checkout
@@ -57,14 +60,15 @@ jobs:
       - name: Configure
         run: perl Makefile.PL
 
+      # the commands below work unchanged in bash and PowerShell
       - name: Build
-        run: $(perl -MConfig -e 'print $Config{make}')
+        run: perl -MConfig -e 'system($Config{make}) == 0 or exit 1'
 
       - name: Test
         env:
           # parallel test runs need select() on pipes, which Windows lacks
           HARNESS_OPTIONS: ${{ runner.os == 'Windows' && 'j1' || 'j4' }}
-        run: $(perl -MConfig -e 'print $Config{make}') test
+        run: perl -MConfig -e 'system($Config{make}, q(test)) == 0 or exit 1'
 
       - name: Verbose test re-run on failure
         if: failure()
