@@ -21,6 +21,10 @@ This dist uses plain `ExtUtils::MakeMaker` plus
   password yourpassword
   ```
 
+- The GitHub CLI [`gh`](https://cli.github.com/), logged in with
+  `gh auth login`: `make release` reads the CI result of the release
+  commit with it.
+
 ## Per-release checklist
 
 1. Make sure the working tree is clean and on `master`, and that the
@@ -93,14 +97,22 @@ This dist uses plain `ExtUtils::MakeMaker` plus
    prove -b xt
    ```
 
-7. Commit the version bump and `Changes` entry. `make release`
-   refuses to run on a dirty tree, so this has to happen first:
+7. Commit the version bump and `Changes` entry, push it and wait for
+   CI to pass on that commit. `make release` refuses to run on a dirty
+   tree, so the commit has to happen first anyway:
 
    ```sh
    git commit -am "Release v1.001"
+   git push
+   gh run watch --exit-status \
+       "$(gh run list --workflow ci.yml --commit "$(git rev-parse HEAD)" --limit 1 --json databaseId --jq '.[0].databaseId')"
    ```
 
-   Use the version from step 2.
+   Use the version from step 2. If `gh run list` finds no run yet,
+   wait a few seconds: GitHub creates it shortly after the push. Upload
+   only when every job is green, on every Perl, on Windows and in the
+   author-test job; `make release` refuses to upload otherwise. If one
+   fails, fix the cause, commit, push and watch again.
 
 8. Cut and upload the release:
 
@@ -114,6 +126,8 @@ This dist uses plain `ExtUtils::MakeMaker` plus
      one in `lib/Imager/File/SIXEL.pm`.
    - Refuses to proceed if the git working tree is dirty.
    - Refuses to proceed if a tag `v$(VERSION)` already exists.
+   - Refuses to proceed unless the GitHub CI run of `HEAD` has passed
+     (`make ci-check`, which needs an authenticated `gh`).
    - Runs `make disttest` (builds the dist directory, configures it,
      compiles it and runs its tests; this is what catches missing
      `MANIFEST` entries before they reach CPAN).
